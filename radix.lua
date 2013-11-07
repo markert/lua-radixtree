@@ -1,5 +1,4 @@
 local pairs = pairs
-local ipairs = ipairs
 
 new = function(config)
   local j = {}
@@ -10,6 +9,7 @@ new = function(config)
   local lookup_fsm = function (wordpart, next_state, next_letter)
     if (wordpart:sub(next_state,next_state) ~= next_letter) then
       next_state = 0
+      return false, next_state
     end
     if (wordpart:len() == next_state) then
       return true, next_state

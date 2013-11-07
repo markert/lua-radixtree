@@ -7,7 +7,6 @@ new = function(config)
   local j = {}
   local radix_tree = {}
   local radix_elements = {}
-  local add_to_tree
   
   local lookup_fsm = function (wordpart , state, letter)
     local next_state = state + 1
@@ -21,6 +20,7 @@ new = function(config)
 	end
   end
   
+  local add_to_tree
   add_to_tree = function( a, fullword, part )
     part = part or fullword;
     if part:len() < 1 then
@@ -81,6 +81,7 @@ new = function(config)
         root_lookup( a[s], part:sub(2) )
       end
     end
+  end
   
   local clear_tree = function (tree_to_clear)
     tree_to_clear = {}

@@ -1,4 +1,5 @@
 local pairs = pairs
+local ipairs = ipairs
 
 new = function(config)
   local j = {}
@@ -70,12 +71,12 @@ new = function(config)
   local leaf_lookup
   leaf_lookup = function( a, word, state )
     local next_state = state+1
-    local hit, next_state = lookup_fsm(word, next_state, word:sub(next_state,next_state))
-    if (hit == true) then
-      radix_traverse(a)
-    else
-      for k, v in pairs(a) do
-        if type(v)=="table" then
+    for k, v in pairs(a) do
+      if type(v)=="table" then
+        local hit, next_state = lookup_fsm(word, next_state, k)
+        if (hit == true) then
+          radix_elements[next(v)] = true
+        else
           leaf_lookup( v, word, next_state);
         end
       end

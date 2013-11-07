@@ -8,8 +8,7 @@ new = function(config)
   
   local lookup_fsm = function (wordpart, next_state, next_letter)
     if (wordpart:sub(next_state,next_state) ~= next_letter) then
-      next_state = 0
-      return false, next_state
+      return false, 0
     end
     if (wordpart:len() == next_state) then
       return true, next_state

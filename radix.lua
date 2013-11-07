@@ -1,7 +1,4 @@
-local pcall = pcall
 local pairs = pairs
-local ipairs = ipairs
-local print = print
 
 new = function(config)
   local j = {}
@@ -79,7 +76,7 @@ new = function(config)
     else
       for k, v in pairs(a) do
         if type(v)=="table" then
-          leaf_lookup( v );
+          leaf_lookup( v, word, next_state);
         end
       end
     end
@@ -93,14 +90,29 @@ new = function(config)
     elements = {}
   end
   
-  j.add_to_tree = add_to_tree
-  j.remove_from_tree = remove_from_tree
-  j.radix_traverse = radix_traverse
+  j.add = add_to_tree
+  j.add_main = function (word)
+    add_to_tree(radix_tree, word)
+  end
+  j.remove = remove_from_tree
+  j.remove_main = function (word)
+    remove_from_tree(radix_tree, word)
+  end
+  j.traverse = radix_traverse
+  j.traverse_main = function ()
+    radix_traverse(radix_tree)
+  end
   j.root_lookup = root_lookup
-  j.clear_tree = clear_tree
-  j.reset_elements = reset_elements
-  j.radix_elements = radix_elements
-  j.radix_tree = radix_tree
+  j.root_lookup_main = function (word)
+    root_lookup(radix_tree, word)
+  end
+  j.leaf_lookup = leaf_lookup
+  j.leaf_lookup_main = function (word)
+    leaf_lookup(radix_tree, word, 0)
+  end
+  j.clear = clear_tree
+  j.found_elements = radix_elements
+  j.tree = radix_tree
   
   return j
 end

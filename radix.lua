@@ -69,15 +69,21 @@ new = function(config)
   end
   
   local leaf_lookup
-  leaf_lookup = function( a, word, state )
+  leaf_lookup = function( a, word, state, only_end )
     local next_state = state+1
     for k, v in pairs(a) do
       if type(v)=="table" then
         local hit, next_state = lookup_fsm(word, next_state, k)
         if (hit == true) then
-          radix_elements[next(v)] = true
+          if only_end then
+            if type(v[next(v)])=="boolean" then
+              radix_elements[next(v)] = true
+            end
+          else
+            radix_traverse( v )
+          end
         else
-          leaf_lookup( v, word, next_state);
+          leaf_lookup( v, word, next_state, only_end);
         end
       end
     end
@@ -108,8 +114,8 @@ new = function(config)
     root_lookup(radix_tree, word)
   end
   j.leaf_lookup = leaf_lookup
-  j.leaf_lookup_main = function (word)
-    leaf_lookup(radix_tree, word, 0)
+  j.leaf_lookup_main = function (word, only_leafs)
+    leaf_lookup(radix_tree, word, 0, only_leafs)
   end
   j.clear = clear_tree
   j.found_elements = radix_elements

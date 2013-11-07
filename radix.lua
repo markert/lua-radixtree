@@ -1,4 +1,5 @@
 local pairs = pairs
+local print = print
 
 new = function(config)
   local j = {}
@@ -98,6 +99,67 @@ new = function(config)
     leaf_lookup(temp_instance, wordend, 0, true)
   end
   
+  local root_anypos_lookup
+  root_anypos_lookup = function(tree_instance, wordstart, wordend)
+    root_lookup(tree_instance, wordstart)
+    leaf_lookup(temp_instance, wordend, 0, false)
+  end
+  
+  local match_tree
+  match_tree = function (tree_instance, match_string)
+    if not match_string then
+      return
+    end    
+    
+    local start_id = false 
+    local end_id = false 
+    local left_string = match_string
+    local right_string = nil
+    if (match_string:sub(1,1) == '^') then
+      start_id = true
+      left_string = left_string:sub(2,left_string:len())
+    end
+    if (left_string:sub(left_string:len(),left_string:len()) == '$') then
+      end_id = true
+      left_string = left_string:sub(1,left_string:len()-1)
+    end
+    local wildcard = left_string:find('%.')
+    if (wildcard ~=  nil) then
+      right_string = left_string:sub(wildcard+1, left_string:len())
+      left_string = left_string:sub(1,wildcard-1)
+    end
+
+    if(start_id == true) then
+      if (end_id == true) then
+        if (right_string ~= nil) then 
+           root_leaf_lookup(tree_instance, left_string, right_string) -- '^abc.cda$'
+        else
+           root_lookup(tree_instance, left_string, true) -- TODO: think about that again '^abccda$'
+        end
+      else
+        if (right_string ~= nil) then 
+          root_anypos_lookup(tree_instance, left_string, right_string) -- '^abc.cda'
+        else
+          root_lookup(tree_instance, left_string, true) -- '^abc'
+        end
+      end
+    else
+      if (end_id == true) then
+        if (right_string ~= nil) then 
+          -- TODO: 'abc.cda$'
+        else
+          leaf_lookup(tree_instance, left_string, 0, true) -- 'abc$'
+        end
+      else
+        if (right_string ~= nil) then 
+          --TODO: 'abc.cda'
+        else
+          leaf_lookup(tree_instance, left_string, 0, false) -- 'abc'
+        end
+      end
+    end
+  end
+  
   j.add = add_to_tree
   j.add_main = function (word)
     add_to_tree(radix_tree, word)
@@ -118,6 +180,10 @@ new = function(config)
   j.root_leaf_lookup_main = function (wordstart, wordend)
     root_leaf_lookup(radix_tree, wordstart, wordend)
   end
+  j.root_anypos_lookup = root_leaf_lookup
+  j.root_anypos_lookup_main = function (wordstart, wordend)
+    root_anypos_lookup(radix_tree, wordstart, wordend)
+  end
   j.leaf_lookup = leaf_lookup
   j.leaf_lookup_main = function (word)
     leaf_lookup(radix_tree, word, 0, true)
@@ -130,6 +196,10 @@ new = function(config)
   end
   j.reset_tree = function ()
     for k,v in pairs(radix_tree) do radix_tree[k]=nil end
+  end
+  j.match_tree = match_tree
+  j.match_tree_main = function (word)
+    match_tree(radix_tree, word)
   end
   j.found_elements = radix_elements
   j.tree = radix_tree

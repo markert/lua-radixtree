@@ -89,14 +89,6 @@ new = function(config)
     end
   end
   
-  local clear_tree = function (tree_to_clear)
-    tree_to_clear = {}
-  end
-  
-  local reset_elements = function (elements)
-    elements = {}
-  end
-  
   j.add = add_to_tree
   j.add_main = function (word)
     add_to_tree(radix_tree, word)
@@ -117,7 +109,12 @@ new = function(config)
   j.leaf_lookup_main = function (word, only_leafs)
     leaf_lookup(radix_tree, word, 0, only_leafs)
   end
-  j.clear = clear_tree
+  j.reset_elements = function ()
+    for k,v in pairs(radix_elements) do radix_elements[k]=nil end
+  end
+  j.reset_tree = function ()
+    for k,v in pairs(radix_tree) do radix_tree[k]=nil end
+  end
   j.found_elements = radix_elements
   j.tree = radix_tree
   

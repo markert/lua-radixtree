@@ -8,16 +8,15 @@ new = function(config)
   local radix_tree = {}
   local radix_elements = {}
   
-  local lookup_fsm = function (wordpart , state, letter)
-    local next_state = state + 1
-	if (wordpart:sub(next_state,next_state) ~= letter) then
-	  next_state = 0
-	end
-	if (wordpart:len() == next_state) then
-	  return true, next_state
-	else
-	  return false, next_state
-	end
+  local lookup_fsm = function (wordpart, next_state, next_letter)
+    if (wordpart:sub(next_state,next_state) ~= next_letter) then
+      next_state = 0
+    end
+    if (wordpart:len() == next_state) then
+      return true, next_state
+    else
+      return false, next_state
+    end
   end
   
   local add_to_tree
@@ -33,7 +32,7 @@ new = function(config)
       add_to_tree( a[s], fullword, part:sub(2) )
     end
   end
-
+  
   local remove_from_tree
   remove_from_tree = function( a, fullword, part )
     part = part or fullword;
@@ -69,16 +68,19 @@ new = function(config)
         root_lookup( a[s], part:sub(2) )
       end
     end
-  end      
+  end
   
   local leaf_lookup
-  leaf_lookup = function( a, part )
-    if part:len() < 1 then
-      radix_traverse( a )
+  leaf_lookup = function( a, word, state )
+    local next_state = state+1
+    local hit, next_state = lookup_fsm(word, next_state, word:sub(next_state,next_state))
+    if (hit == true) then
+      radix_traverse(a)
     else
-      local s = part:sub( 1, 1 )
-      if type(a[s])=="table" then
-        root_lookup( a[s], part:sub(2) )
+      for k, v in pairs(a) do
+        if type(v)=="table" then
+          leaf_lookup( v );
+        end
       end
     end
   end

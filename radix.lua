@@ -109,10 +109,10 @@ new = function(config)
   match_tree = function (tree_instance, match_string)
     if not match_string then
       return
-    end    
+    end
     
-    local start_id = false 
-    local end_id = false 
+    local start_id = false
+    local end_id = false
     local left_string = match_string
     local right_string = nil
     if (match_string:sub(1,1) == '^') then
@@ -128,16 +128,19 @@ new = function(config)
       right_string = left_string:sub(wildcard+1, left_string:len())
       left_string = left_string:sub(1,wildcard-1)
     end
-
+    
     if(start_id == true) then
       if (end_id == true) then
-        if (right_string ~= nil) then 
-           root_leaf_lookup(tree_instance, left_string, right_string) -- '^abc.cda$'
+        if (right_string ~= nil) then
+          root_leaf_lookup(tree_instance, left_string, right_string) -- '^abc.cda$'
         else
-           root_lookup(tree_instance, left_string, true) -- TODO: think about that again '^abccda$'
+          root_lookup(tree_instance, left_string, false) -- '^abccda$'
+          if type(temp_instance[next(temp_instance)])=="boolean" then
+            radix_elements[next(temp_instance)] = true
+          end
         end
       else
-        if (right_string ~= nil) then 
+        if (right_string ~= nil) then
           root_anypos_lookup(tree_instance, left_string, right_string) -- '^abc.cda'
         else
           root_lookup(tree_instance, left_string, true) -- '^abc'
@@ -145,13 +148,13 @@ new = function(config)
       end
     else
       if (end_id == true) then
-        if (right_string ~= nil) then 
+        if (right_string ~= nil) then
           -- TODO: 'abc.cda$'
         else
           leaf_lookup(tree_instance, left_string, 0, true) -- 'abc$'
         end
       else
-        if (right_string ~= nil) then 
+        if (right_string ~= nil) then
           --TODO: 'abc.cda'
         else
           leaf_lookup(tree_instance, left_string, 0, false) -- 'abc'

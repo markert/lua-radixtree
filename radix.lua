@@ -60,9 +60,10 @@ new = function(config)
   local root_lookup
   root_lookup = function( tree_instance, part, traverse)
     if part:len() < 1 then
-      temp_instance = tree_instance
       if (traverse) then
         radix_traverse( tree_instance )
+      else
+        temp_instance = tree_instance
       end
     else
       local s = part:sub( 1, 1 )
@@ -134,6 +135,7 @@ new = function(config)
         if (right_string ~= nil) then
           root_leaf_lookup(tree_instance, left_string, right_string) -- '^abc.cda$'
         else
+          temp_instance = {}
           root_lookup(tree_instance, left_string, false) -- '^abccda$'
           if type(temp_instance[next(temp_instance)])=="boolean" then
             radix_elements[next(temp_instance)] = true

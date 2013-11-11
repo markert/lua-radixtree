@@ -7,9 +7,15 @@ new = function(config)
   local radix_elements = {}
   local temp_instance = nil
   
-  local lookup_fsm = function (wordpart, next_state, next_letter)
-    if (wordpart:sub(next_state,next_state) ~= next_letter) then
-      return false, 0
+  local lookup_fsm = function (wordpart, next_state, next_letter, ci)
+    if ci then
+      if (wordpart:sub(next_state,next_state):lower() ~= next_letter:lower()) then
+        return false, 0
+	  end
+    else
+      if (wordpart:sub(next_state,next_state) ~= next_letter) then
+        return false, 0
+	  end
     end
     if (wordpart:len() == next_state) then
       return true, next_state
@@ -40,7 +46,7 @@ new = function(config)
     else
       local s = part:sub( 1, 1 )
       if type(tree_instance[s])~="table" then
-        tree_instance[s] = {};
+        return
       end
       remove_from_tree( tree_instance[s], fullword, part:sub(2) )
     end
@@ -58,7 +64,7 @@ new = function(config)
   end
   
   local root_lookup
-  root_lookup = function( tree_instance, part, traverse)
+  root_lookup = function( tree_instance, part, traverse, ci)
     if part:len() < 1 then
       if (traverse) then
         radix_traverse( tree_instance )
@@ -68,17 +74,19 @@ new = function(config)
     else
       local s = part:sub( 1, 1 )
       if type(tree_instance[s])=="table" then
-        root_lookup( tree_instance[s], part:sub(2), traverse)
+        root_lookup( tree_instance[s], part:sub(2), traverse ,ci )
+      elseif type(tree_instance[s:upper()])=="table" and ci then
+        root_lookup( tree_instance[s:upper()], part:sub(2), traverse, ci)
       end
     end
   end
   
   local leaf_lookup
-  leaf_lookup = function( tree_instance, word, state, only_end )
+  leaf_lookup = function( tree_instance, word, state, only_end, ci )
     local next_state = state+1
     for k, v in pairs(tree_instance) do
       if type(v)=="table" then
-        local hit, next_state = lookup_fsm(word, next_state, k)
+        local hit, next_state = lookup_fsm(word, next_state, k, ci)
         if (hit == true) then
           if only_end then
             if type(v[next(v)])=="boolean" then
@@ -88,23 +96,23 @@ new = function(config)
             radix_traverse( v )
           end
         else
-          leaf_lookup( v, word, next_state, only_end);
+          leaf_lookup( v, word, next_state, only_end, ci);
         end
       end
     end
   end
   
   local root_leaf_lookup
-  root_leaf_lookup = function(tree_instance, wordstart, wordend)
+  root_leaf_lookup = function(tree_instance, wordstart, wordend, ci)
     temp_instance = {}
-    root_lookup(tree_instance, wordstart, false)
-    leaf_lookup(temp_instance, wordend, 0, true)
+    root_lookup(tree_instance, wordstart, false, ci)
+    leaf_lookup(temp_instance, wordend, 0, true, ci)
   end
   
   local root_anypos_lookup
-  root_anypos_lookup = function(tree_instance, wordstart, wordend)
-    root_lookup(tree_instance, wordstart, false)
-    leaf_lookup(temp_instance, wordend, 0, false)
+  root_anypos_lookup = function(tree_instance, wordstart, wordend, ci)
+    root_lookup(tree_instance, wordstart, false, ci)
+    leaf_lookup(temp_instance, wordend, 0, false, ci)
   end
   
   local match_get_parts
@@ -130,37 +138,37 @@ new = function(config)
   end
   
   local match_tree
-  match_tree = function (tree_instance, left_string, right_string, start_id, end_id)
+  match_tree = function (tree_instance, left_string, right_string, start_id, end_id, ci)
     if(start_id == true) then
       if (end_id == true) then
         if (type(right_string) ~= "boolean") then
-          root_leaf_lookup(tree_instance, left_string, right_string) -- '^abc.cda$'
+          root_leaf_lookup(tree_instance, left_string, right_string, ci) -- '^abc.cda$'
         else
           temp_instance = {}
-          root_lookup(tree_instance, left_string, false) -- '^abccda$'
+          root_lookup(tree_instance, left_string, false, ci) -- '^abccda$'
           if type(temp_instance[next(temp_instance)])=="boolean" then
             radix_elements[next(temp_instance)] = true
           end
         end
       else
         if (type(right_string) ~= "boolean") then
-          root_anypos_lookup(tree_instance, left_string, right_string) -- '^abc.cda'
+          root_anypos_lookup(tree_instance, left_string, right_string, ci) -- '^abc.cda'
         else
-          root_lookup(tree_instance, left_string, true) -- '^abc'
+          root_lookup(tree_instance, left_string, true, ci) -- '^abc'
         end
       end
     else
       if (end_id == true) then
-        if (right_string ~= nil) then
+        if (type(right_string) ~= "boolean") then
           -- TODO: 'abc.cda$'
         else
-          leaf_lookup(tree_instance, left_string, 0, true) -- 'abc$'
+          leaf_lookup(tree_instance, left_string, 0, true, ci) -- 'abc$'
         end
       else
-        if (right_string ~= nil) then
+        if (type(right_string) ~= "boolean") then
           --TODO: 'abc.cda'
         else
-          leaf_lookup(tree_instance, left_string, 0, false) -- 'abc'
+          leaf_lookup(tree_instance, left_string, 0, false, ci) -- 'abc'
         end
       end
     end
@@ -179,23 +187,23 @@ new = function(config)
     radix_traverse(radix_tree)
   end
   j.root_lookup = root_lookup
-  j.root_lookup_main = function (word)
-    root_lookup(radix_tree, word, true)
+  j.root_lookup_main = function (word, ci)
+    root_lookup(radix_tree, word, true, ci)
   end
   j.root_leaf_lookup = root_leaf_lookup
-  j.root_leaf_lookup_main = function (wordstart, wordend)
-    root_leaf_lookup(radix_tree, wordstart, wordend)
+  j.root_leaf_lookup_main = function (wordstart, wordend, ci)
+    root_leaf_lookup(radix_tree, wordstart, wordend, ci)
   end
   j.root_anypos_lookup = root_leaf_lookup
-  j.root_anypos_lookup_main = function (wordstart, wordend)
-    root_anypos_lookup(radix_tree, wordstart, wordend)
+  j.root_anypos_lookup_main = function (wordstart, wordend, ci)
+    root_anypos_lookup(radix_tree, wordstart, wordend, ci)
   end
   j.leaf_lookup = leaf_lookup
-  j.leaf_lookup_main = function (word)
-    leaf_lookup(radix_tree, word, 0, true)
+  j.leaf_lookup_main = function (word, ci)
+    leaf_lookup(radix_tree, word, 0, true, ci)
   end
-  j.anypos_lookup_main = function (word)
-    leaf_lookup(radix_tree, word, 0, false)
+  j.anypos_lookup_main = function (word, ci)
+    leaf_lookup(radix_tree, word, 0, false, ci)
   end
   j.reset_elements = function ()
     for k,v in pairs(radix_elements) do radix_elements[k]=nil end
@@ -204,8 +212,8 @@ new = function(config)
     for k,v in pairs(radix_tree) do radix_tree[k]=nil end
   end
   j.match_tree = match_tree
-  j.match_tree_main = function (left_string, right_string, start_id, end_id)
-    match_tree(radix_tree, left_string, right_string, start_id, end_id)
+  j.match_tree_main = function (left_string, right_string, start_id, end_id, ci)
+    match_tree(radix_tree, left_string, right_string, start_id, end_id, ci)
   end
   j.match_get_parts = match_get_parts
   j.found_elements = radix_elements

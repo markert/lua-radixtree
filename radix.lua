@@ -96,26 +96,23 @@ new = function(config)
   
   local root_leaf_lookup
   root_leaf_lookup = function(tree_instance, wordstart, wordend)
-    root_lookup(tree_instance, wordstart)
+    temp_instance = {}
+    root_lookup(tree_instance, wordstart, false)
     leaf_lookup(temp_instance, wordend, 0, true)
   end
   
   local root_anypos_lookup
   root_anypos_lookup = function(tree_instance, wordstart, wordend)
-    root_lookup(tree_instance, wordstart)
+    root_lookup(tree_instance, wordstart, false)
     leaf_lookup(temp_instance, wordend, 0, false)
   end
   
-  local match_tree
-  match_tree = function (tree_instance, match_string)
-    if not match_string then
-      return
-    end
-    
+  local match_get_parts
+  match_get_parts = function (match_string)  
     local start_id = false
     local end_id = false
     local left_string = match_string
-    local right_string = nil
+    local right_string = false
     if (match_string:sub(1,1) == '^') then
       start_id = true
       left_string = left_string:sub(2,left_string:len())
@@ -129,10 +126,14 @@ new = function(config)
       right_string = left_string:sub(wildcard+1, left_string:len())
       left_string = left_string:sub(1,wildcard-1)
     end
-    
+    return left_string, right_string, start_id, end_id
+  end
+  
+  local match_tree
+  match_tree = function (tree_instance, left_string, right_string, start_id, end_id)
     if(start_id == true) then
       if (end_id == true) then
-        if (right_string ~= nil) then
+        if (type(right_string) ~= "boolean") then
           root_leaf_lookup(tree_instance, left_string, right_string) -- '^abc.cda$'
         else
           temp_instance = {}
@@ -142,7 +143,7 @@ new = function(config)
           end
         end
       else
-        if (right_string ~= nil) then
+        if (type(right_string) ~= "boolean") then
           root_anypos_lookup(tree_instance, left_string, right_string) -- '^abc.cda'
         else
           root_lookup(tree_instance, left_string, true) -- '^abc'
@@ -203,9 +204,10 @@ new = function(config)
     for k,v in pairs(radix_tree) do radix_tree[k]=nil end
   end
   j.match_tree = match_tree
-  j.match_tree_main = function (word)
-    match_tree(radix_tree, word)
+  j.match_tree_main = function (left_string, right_string, start_id, end_id)
+    match_tree(radix_tree, left_string, right_string, start_id, end_id)
   end
+  j.match_get_parts = match_get_parts
   j.found_elements = radix_elements
   j.tree = radix_tree
   

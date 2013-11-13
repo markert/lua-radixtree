@@ -131,6 +131,69 @@ new = function(config)
     end
   end
   
+  local lookup_one_path
+  lookup_one_path = function( word, left_string, right_string, start_id, end_id, ci)
+    local wl = word:len()
+    if(start_id == true) then
+      if (end_id == true) then
+        if (type(right_string) ~= "boolean") then
+          if (word:sub(1,left_string:len()) == left_string and word:sub(wl - right_string:len() + 1, wl) == right_string) then
+            return true
+          end
+        else
+         if (word == left_string) then
+            return true
+        end
+        end
+      else
+        if (type(right_string) ~= "boolean") then
+          ll = left_string:len()
+          if (word:sub(1,ll) == left_string) then
+            cut_word = word:sub(ll, wl)
+            if(cut_word:find(right_string)) then
+              return true
+            end
+          end
+        else
+          if (word:sub(1,left_string:len()) == left_string) then
+            return true
+          end
+        end
+      end
+    else
+      if (end_id == true) then
+        if (type(right_string) ~= "boolean") then
+        local l,r = word:find(left_string) 
+          if(r) then
+            local cut_word = word:sub(r+1, wl)
+            if (cut_word:sub(wl-right_string:len() + 1, wl) == right_string) then
+              return true
+            end
+          end
+        else
+          if (word:sub(wl - left_string:len() + 1, wl) == left_string) then
+            return true
+          end
+        end
+      else
+        if (type(right_string) ~= "boolean") then     
+          local l,r = word:find(left_string) 
+          if(r) then
+            local cut_word = word:sub(r+1, wl)
+            if (cut_word:find(right_string)) then
+              return true
+            end
+          end
+        else
+          if(word:find(left_string)) then
+            return true
+          end
+        end
+      end
+    end
+    return false
+  end
+  
   local remove_from_tree
   remove_from_tree = function( tree_instance, fullword, part )
     part = part or fullword;
@@ -270,6 +333,7 @@ new = function(config)
   j.match_get_parts = match_get_parts
   j.found_elements = radix_elements
   j.tree = radix_tree
+  j.lookup_one_path = lookup_one_path
   
   return j
 end

@@ -133,6 +133,10 @@ new = function(config)
   
   local lookup_one_path
   lookup_one_path = function( word, left_string, right_string, start_id, end_id, ci)
+    local word = word
+    if (ci) then
+      word = word:lower()
+    end
     local wl = word:len()
     if(start_id == true) then
       if (end_id == true) then

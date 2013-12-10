@@ -15,7 +15,7 @@ example
 
 ```Lua
 local radix = require'radix'
-local radixtree = radix.new()
+local radixTree = radix.new()
 radixTree.add('foo')
 radixTree.add('bar')
 local matches = radixTree.get_possible_matches({startsWith = "fo"}, false)
@@ -26,6 +26,18 @@ if matches then
 end
 
 ```
+
+speed comparison
+=============
+
+added radixtree:        16.518508911133
+lookup radixtree:       0.004925012588501
+added table:    3.9087619781494
+lookup table:   0.50004291534424
+
+Obviously, adding strings to the radix-tree consumes more time (4x) than just pushing them into an array.
+A lookup from the radix tree is much faster (100x) than an ordinary string.match.
+If you rely on fast string compares the radix-tree is the way to go.
 
 interface
 =============

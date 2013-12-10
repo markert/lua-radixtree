@@ -56,6 +56,7 @@ The Object can have the following identifiers:
 - startsWith = string
 - contains = string
 - endsWith = string
+- equals = string
 
 If only a set of these identifiers is present, the completeness identifier is "all" and the returned elements represent the complete match that e.g. a string.find or string.match would return when iterating over all added strings.
 More identifiers can be defined that are not evalueted by the tree but must be evaluated by the calling application. 

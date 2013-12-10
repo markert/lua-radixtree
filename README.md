@@ -30,10 +30,10 @@ end
 speed comparison
 =============
 
-added radixtree:        16.518508911133
-lookup radixtree:       0.004925012588501
-added table:    3.9087619781494
-lookup table:   0.50004291534424
+- added radixtree:        16.518508911133
+- lookup radixtree:       0.004925012588501
+- added table:    3.9087619781494
+- lookup table:   0.50004291534424
 
 Obviously, adding strings to the radix-tree consumes more time (4x) than just pushing them into an array.
 A lookup from the radix tree is much faster (100x) than an ordinary string.match.
@@ -53,9 +53,9 @@ get_possible_matches(Object, Boolean)
 returns array of matches and completeness identifier
 
 The Object can have the following identifiers:
-startsWith = string
-contains = string
-endsWith = string
+- startsWith = string
+- contains = string
+- endsWith = string
 
 If only a set of these identifiers is present, the completeness identifier is "all" and the returned elements represent the complete match that e.g. a string.find or string.match would return when iterating over all added strings.
 More identifiers can be defined that are not evalueted by the tree but must be evaluated by the calling application. 

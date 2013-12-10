@@ -1,4 +1,4 @@
--- Implements a radix tree for the jet-daemon
+-- Implements a radix tree
 
 local pairs = pairs
 local next = next

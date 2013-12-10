@@ -153,21 +153,19 @@ local new = function()
   -- completely or partially by the radix tree
   -- returns elements from the j.radix_tree if it can be handled
   -- and nil otherwise
-  local get_possible_matches = function(peer,params,fetch_id,is_case_insensitive)
-    local involves_path_match = params.path
-    local involves_value_match = params.value or params.valueField
+  local get_possible_matches = function(path,is_case_insensitive)
     local level = 'impossible'
     local radix_expressions = {}
     
-    if involves_path_match and not is_case_insensitive then
-      for name,value in pairs(params.path) do
+    if not is_case_insensitive then
+      for name,value in pairs(path) do
         if name == 'equals' or name == 'startsWith' or name == 'endsWith' or name == 'contains' then
           if radix_expressions[name] then
             level = 'impossible'
             break
           end
           radix_expressions[name] = value
-          if level == 'partial_pending' or involves_value_match then
+          if level == 'partial_pending' then
             level = 'partial'
           elseif level ~= 'partial' then
             level = 'all'

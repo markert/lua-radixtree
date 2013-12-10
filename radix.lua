@@ -187,9 +187,9 @@ local new = function()
     
     if level ~= 'impossible' then
       match_parts(j.radix_tree,radix_expressions)
-      return j.radix_elements
+      return j.radix_elements, level
     else
-      return nil
+      return nil, level
     end
   end
   

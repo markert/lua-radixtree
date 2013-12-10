@@ -1,343 +1,214 @@
+-- Implements a radix tree for the jet-daemon
+
 local pairs = pairs
-local print = print
+local next = next
+local tinsert = table.insert
+local tremove = table.remove
 
-new = function(config)
+local new = function()
   local j = {}
-  local radix_tree = {}
-  local radix_elements = {}
-  local temp_instance = nil
-  local lookup_fsm
+  
+  -- the table that holds the radix_tree
+  j.radix_tree = {}
+  
+  -- elments that can be filled by several functions
+  -- and be returned as set of possible hits
+  j.radix_elements = {}
+  
+  -- internal tree instance or table of tree instances
+  -- used to hold parts of the tree that may be interesting afterwards
+  j.return_tree = {}
+  
+  -- this FSM is used for string comparison
+  -- can evaluate if the radix tree contains or ends with a specific string
+  local lookup_fsm = function (wordpart,next_state,next_letter)
+    if wordpart:sub(next_state,next_state) ~= next_letter then
+      if wordpart:sub(1,1) ~= next_letter then
+        return false,0
+      else
+        return false,1
+      end
+    end
+    if #wordpart == next_state then
+      return true,next_state
+    else
+      return false,next_state
+    end
+  end
+  
+  -- evaluate if the radix tree starts with a specific string
+  -- returns pointer to subtree
   local root_lookup
+  root_lookup = function(tree_instance,part)
+    if #part == 0 then
+      j.return_tree = tree_instance
+    else
+      local s = part:sub(1,1)
+      if tree_instance and tree_instance[s] ~= true then
+        root_lookup(tree_instance[s], part:sub(2))
+      end
+    end
+  end
+  
+  -- evaluate if the radix tree contains or ends with a specific string
+  -- returns list of pointers to subtrees
   local leaf_lookup
+  leaf_lookup = function(tree_instance,word,state)
+    local next_state = state + 1
+    if tree_instance then
+      for k,v in pairs(tree_instance) do
+        if v ~= true then
+          local hit,next_state = lookup_fsm(word,next_state,k)
+          if hit == true then
+            tinsert(j.return_tree,v)
+          else
+            leaf_lookup(v,word,next_state)
+          end
+        end
+      end
+    end
+  end
+  
+  -- takes a single tree or a list of trees
+  -- traverses the trees and adds all elements to j.radix_elements
   local radix_traverse
-  local root_leaf_lookup
-  local root_anypos_lookup
-  
-  if config and config.ci then
-    lookup_fsm = function (wordpart, next_state, next_letter, ci)
-      if ci then
-        if (wordpart:sub(next_state,next_state):lower() ~= next_letter:lower()) then
-          return false, 0
-	    end
-      else
-        if (wordpart:sub(next_state,next_state) ~= next_letter) then
-          return false, 0
-	    end
-      end
-      if (wordpart:len() == next_state) then
-        return true, next_state
-      else
-        return false, next_state
-      end
-    end
-
-    root_lookup = function( tree_instance, part, traverse, ci)
-      if part:len() < 1 then
-        if (traverse) then
-          radix_traverse( tree_instance )
-        else
-          temp_instance = tree_instance
-        end
-      else
-        local s = part:sub( 1, 1 )
-        if type(tree_instance[s])=="table" then
-          root_lookup( tree_instance[s], part:sub(2), traverse ,ci )
-        elseif type(tree_instance[s:upper()])=="table" and ci then
-          root_lookup( tree_instance[s:upper()], part:sub(2), traverse, ci)
-        end
-      end
-    end
-  
-    leaf_lookup = function( tree_instance, word, state, only_end, ci )
-      local next_state = state+1
-      for k, v in pairs(tree_instance) do
-        if type(v)=="table" then
-          local hit, next_state = lookup_fsm(word, next_state, k, ci)
-          if (hit == true) then
-            if only_end then
-              if type(v[next(v)])=="boolean" then
-                radix_elements[next(v)] = true
-              end
-            else
-              radix_traverse( v )
-            end
-          else
-            leaf_lookup( v, word, next_state, only_end, ci);
-          end
-        end
-      end
-    end
-  
-  else
-  
-    lookup_fsm = function (wordpart, next_state, next_letter)
-      if (wordpart:sub(next_state,next_state) ~= next_letter) then
-        return false, 0
-      end
-      if (wordpart:len() == next_state) then
-        return true, next_state
-      else
-        return false, next_state
-      end
-    end
-
-    root_lookup = function( tree_instance, part, traverse)
-      if part:len() < 1 then
-        if (traverse) then
-          radix_traverse( tree_instance )
-        else
-          temp_instance = tree_instance
-        end
-      else
-        local s = part:sub( 1, 1 )
-        if type(tree_instance[s])=="table" then
-          root_lookup( tree_instance[s], part:sub(2), traverse)
-        end
-      end
-    end
-  
-    leaf_lookup = function( tree_instance, word, state, only_end)
-      local next_state = state+1
-      for k, v in pairs(tree_instance) do
-        if type(v)=="table" then
-          local hit, next_state = lookup_fsm(word, next_state, k)
-          if (hit == true) then
-            if only_end then
-              if type(v[next(v)])=="boolean" then
-                radix_elements[next(v)] = true
-              end
-            else
-              radix_traverse( v )
-            end
-          else
-            leaf_lookup( v, word, next_state, only_end);
-          end
-        end
+  radix_traverse = function(tree_instance)
+    for k,v in pairs(tree_instance) do
+      if v == true then
+        j.radix_elements[k] = true
+      elseif v ~= true then
+        radix_traverse(v)
       end
     end
   end
-
-  local add_to_tree
-  add_to_tree = function( tree_instance, fullword, part )
-    part = part or fullword;
-    if part:len() < 1 then
-      tree_instance[fullword]=true;
-    else
-      local s = part:sub( 1, 1 )
-      if type(tree_instance[s])~="table" then
-        tree_instance[s] = {};
+  
+  -- adds a new element to the tree
+  local add_to_tree = function(word)
+    local t = j.radix_tree
+    for char in word:gfind('.') do
+      if t[char] == true or t[char] == nil then
+        t[char] = {}
       end
-      add_to_tree( tree_instance[s], fullword, part:sub(2) )
+      t = t[char]
     end
+    t[word] = true
   end
   
-  local lookup_one_path
-  lookup_one_path = function( word, left_string, right_string, start_id, end_id, ci)
-    local word = word
-    if (ci) then
-      word = word:lower()
-    end
-    local wl = word:len()
-    if(start_id == true) then
-      if (end_id == true) then
-        if (type(right_string) ~= "boolean") then
-          if (word:sub(1,left_string:len()) == left_string and word:sub(wl - right_string:len() + 1, wl) == right_string) then
-            return true
-          end
-        else
-         if (word == left_string) then
-            return true
-        end
-        end
-      else
-        if (type(right_string) ~= "boolean") then
-          ll = left_string:len()
-          if (word:sub(1,ll) == left_string) then
-            cut_word = word:sub(ll, wl)
-            if(cut_word:find(right_string)) then
-              return true
-            end
-          end
-        else
-          if (word:sub(1,left_string:len()) == left_string) then
-            return true
-          end
-        end
-      end
-    else
-      if (end_id == true) then
-        if (type(right_string) ~= "boolean") then
-        local l,r = word:find(left_string) 
-          if(r) then
-            local cut_word = word:sub(r+1, wl)
-            if (cut_word:sub(wl-right_string:len() + 1, wl) == right_string) then
-              return true
-            end
-          end
-        else
-          if (word:sub(wl - left_string:len() + 1, wl) == left_string) then
-            return true
-          end
-        end
-      else
-        if (type(right_string) ~= "boolean") then     
-          local l,r = word:find(left_string) 
-          if(r) then
-            local cut_word = word:sub(r+1, wl)
-            if (cut_word:find(right_string)) then
-              return true
-            end
-          end
-        else
-          if(word:find(left_string)) then
-            return true
-          end
-        end
-      end
-    end
-    return false
-  end
   
-  local remove_from_tree
-  remove_from_tree = function( tree_instance, fullword, part )
-    part = part or fullword;
-    if part:len() < 1 then
-      tree_instance[fullword]=nil;
-    else
-      local s = part:sub( 1, 1 )
-      if type(tree_instance[s])~="table" then
+  -- removes an element from the tree
+  local remove_from_tree = function(word)
+    local t = j.radix_tree
+    for char in word:gfind('.') do
+      if t[char] == true then
         return
       end
-      remove_from_tree( tree_instance[s], fullword, part:sub(2) )
+      t = t[char]
     end
+    t[word] = nil
   end
   
-  
-  radix_traverse = function( tree_instance )
-    for k, v in pairs(tree_instance) do
-      if type(v)=="boolean" then
-        radix_elements[k] = true
-      elseif type(v)=="table" then
-        radix_traverse( v );
-      end
-    end
-  end
-  
-  root_leaf_lookup = function(tree_instance, wordstart, wordend, ci)
-    temp_instance = {}
-    root_lookup(tree_instance, wordstart, false, ci)
-    leaf_lookup(temp_instance, wordend, 0, true, ci)
-  end
-  
-  root_anypos_lookup = function(tree_instance, wordstart, wordend, ci)
-    root_lookup(tree_instance, wordstart, false, ci)
-    leaf_lookup(temp_instance, wordend, 0, false, ci)
-  end
-  
-  local match_get_parts
-  match_get_parts = function (match_string)  
-    local start_id = false
-    local end_id = false
-    local left_string = match_string
-    local right_string = false
-    if (match_string:sub(1,1) == '^') then
-      start_id = true
-      left_string = left_string:sub(2,left_string:len())
-    end
-    if (left_string:sub(left_string:len(),left_string:len()) == '$') then
-      end_id = true
-      left_string = left_string:sub(1,left_string:len()-1)
-    end
-    local wildcard = left_string:find('%.')
-    if (wildcard ~=  nil) then
-      right_string = left_string:sub(wildcard+1, left_string:len())
-      left_string = left_string:sub(1,wildcard-1)
-    end
-    return left_string, right_string, start_id, end_id
-  end
-  
-  local match_tree
-  match_tree = function (tree_instance, left_string, right_string, start_id, end_id, ci)
-    if(start_id == true) then
-      if (end_id == true) then
-        if (type(right_string) ~= "boolean") then
-          root_leaf_lookup(tree_instance, left_string, right_string, ci) -- '^abc.cda$'
-        else
-          temp_instance = {}
-          root_lookup(tree_instance, left_string, false, ci) -- '^abccda$'
-          if type(temp_instance[next(temp_instance)])=="boolean" then
-            radix_elements[next(temp_instance)] = true
-          end
-        end
-      else
-        if (type(right_string) ~= "boolean") then
-          root_anypos_lookup(tree_instance, left_string, right_string, ci) -- '^abc.cda'
-        else
-          root_lookup(tree_instance, left_string, true, ci) -- '^abc'
-        end
+  -- performs the respective actions for the parts of a fetcher
+  -- that can be handled by a radix tree
+  -- fills j.radix_elements with all hits that were found
+  local match_parts = function(tree_instance,parts)
+    j.radix_elements = {}
+    if parts['equals'] then
+      j.return_tree = {}
+      root_lookup(tree_instance,parts['equals'])
+      if j.return_tree[parts['equals']] == true then
+        j.radix_elements[parts['equals']] = true
       end
     else
-      if (end_id == true) then
-        if (type(right_string) ~= "boolean") then
-          -- TODO: 'abc.cda$'
-        else
-          leaf_lookup(tree_instance, left_string, 0, true, ci) -- 'abc$'
+      local temp_tree = tree_instance
+      if parts['startsWith'] then
+        j.return_tree = {}
+        root_lookup(temp_tree,parts['startsWith'])
+        temp_tree = j.return_tree
+      end
+      if parts['contains'] then
+        j.return_tree = {}
+        leaf_lookup(temp_tree,parts['contains'],0)
+        temp_tree = j.return_tree
+      end
+      if parts['endsWith'] then
+        j.return_tree = {}
+        leaf_lookup(temp_tree,parts['endsWith'],0)
+        for k,t in pairs(j.return_tree) do
+          for _,v in pairs(t) do
+            if v ~= true then
+              j.return_tree[k] = nil
+              break
+            end
+          end
         end
-      else
-        if (type(right_string) ~= "boolean") then
-          --TODO: 'abc.cda'
-        else
-          leaf_lookup(tree_instance, left_string, 0, false, ci) -- 'abc'
-        end
+        temp_tree = j.return_tree
+      end
+      if temp_tree then
+        radix_traverse(temp_tree)
       end
     end
   end
   
-  j.add = add_to_tree
-  j.add_main = function (word)
-    add_to_tree(radix_tree, word)
+  -- evaluates if the fetch operation can be handled
+  -- completely or partially by the radix tree
+  -- returns elements from the j.radix_tree if it can be handled
+  -- and nil otherwise
+  local get_possible_matches = function(peer,params,fetch_id,is_case_insensitive)
+    local involves_path_match = params.path
+    local involves_value_match = params.value or params.valueField
+    local level = 'impossible'
+    local radix_expressions = {}
+    
+    if involves_path_match and not is_case_insensitive then
+      for name,value in pairs(params.path) do
+        if name == 'equals' or name == 'startsWith' or name == 'endsWith' or name == 'contains' then
+          if radix_expressions[name] then
+            level = 'impossible'
+            break
+          end
+          radix_expressions[name] = value
+          if level == 'partial_pending' or involves_value_match then
+            level = 'partial'
+          elseif level ~= 'partial' then
+            level = 'all'
+          end
+        else
+          if level == 'easy' or level == 'partial' then
+            level = 'partial'
+          else
+            level = 'partial_pending'
+          end
+        end
+      end
+      if level == 'partial_pending' then
+        level = 'impossible'
+      end
+    end
+    
+    if level ~= 'impossible' then
+      match_parts(j.radix_tree,radix_expressions)
+      return j.radix_elements
+    else
+      return nil
+    end
   end
-  j.remove = remove_from_tree
-  j.remove_main = function (word)
-    remove_from_tree(radix_tree, word)
+  
+  j.add = function(word)
+    add_to_tree(word)
   end
-  j.traverse = radix_traverse
-  j.traverse_main = function ()
-    radix_traverse(radix_tree)
+  j.remove = function(word)
+    remove_from_tree(word)
   end
-  j.root_lookup = root_lookup
-  j.root_lookup_main = function (word, ci)
-    root_lookup(radix_tree, word, true, ci)
+  j.get_possible_matches = get_possible_matches
+  
+  -- for unit testing
+  
+  j.match_parts = function(parts,xxx)
+    match_parts(j.radix_tree,parts,xxx)
   end
-  j.root_leaf_lookup = root_leaf_lookup
-  j.root_leaf_lookup_main = function (wordstart, wordend, ci)
-    root_leaf_lookup(radix_tree, wordstart, wordend, ci)
+  j.found_elements = function()
+    return j.radix_elements
   end
-  j.root_anypos_lookup = root_leaf_lookup
-  j.root_anypos_lookup_main = function (wordstart, wordend, ci)
-    root_anypos_lookup(radix_tree, wordstart, wordend, ci)
-  end
-  j.leaf_lookup = leaf_lookup
-  j.leaf_lookup_main = function (word, ci)
-    leaf_lookup(radix_tree, word, 0, true, ci)
-  end
-  j.anypos_lookup_main = function (word, ci)
-    leaf_lookup(radix_tree, word, 0, false, ci)
-  end
-  j.reset_elements = function ()
-    for k,v in pairs(radix_elements) do radix_elements[k]=nil end
-  end
-  j.reset_tree = function ()
-    for k,v in pairs(radix_tree) do radix_tree[k]=nil end
-  end
-  j.match_tree = match_tree
-  j.match_tree_main = function (left_string, right_string, start_id, end_id, ci)
-    match_tree(radix_tree, left_string, right_string, start_id, end_id, ci)
-  end
-  j.match_get_parts = match_get_parts
-  j.found_elements = radix_elements
-  j.tree = radix_tree
-  j.lookup_one_path = lookup_one_path
   
   return j
 end

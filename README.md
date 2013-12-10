@@ -30,6 +30,8 @@ end
 speed comparison
 =============
 
+3.000.000 states are added and a lookup is performed.
+
 - added radixtree:        16.518508911133
 - lookup radixtree:       0.004925012588501
 - added table:    3.9087619781494

@@ -5,7 +5,7 @@ local radix = require'radix'
 local socket = require("socket")
 local tinsert = table.insert
 
-local count = 300000
+local count = 3000000
 local long_path_prefix = string.rep('foobar',1)
 
 local radixTree = radix.new()
@@ -14,11 +14,11 @@ local radixTree = radix.new()
 local t_start = socket.gettime()
 
 for i=1,count do
-  radixTree.add(long_path_prefix..i)
+  radixTree.add(i..long_path_prefix)
 end
 local t_added = socket.gettime()
 print("added radixtree: ", t_added-t_start)
-local matches = radixTree.get_possible_matches({startsWith = "2012", contains = "fo", endsWith = "ar"}, false) -- returns 10 matches
+local matches = radixTree.get_possible_matches({startsWith = "2012", contains = "fo", endsWith = "ar"}, false)
 local t_end = socket.gettime()
 print("lookup radixtree: ", t_end - t_added)
 

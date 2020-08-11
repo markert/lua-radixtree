@@ -85,7 +85,7 @@ local new = function()
   -- adds a new element to the tree
   local add_to_tree = function(word)
     local t = j.radix_tree
-    for char in word:gfind('.') do
+    for char in word:gmatch('.') do
       if t[char] == true or t[char] == nil then
         t[char] = {}
       end
@@ -98,7 +98,7 @@ local new = function()
   -- removes an element from the tree
   local remove_from_tree = function(word)
     local t = j.radix_tree
-    for char in word:gfind('.') do
+    for char in word:gmatch('.') do
       if t[char] == true then
         return
       end
